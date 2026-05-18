@@ -1,5 +1,7 @@
+import crypto from "node:crypto";
 import { markBuildFailed, markBuildReady, updateBuildStatus } from "../repositories/builds-repository.js";
-import type { BuildRecord } from "../types/build.js";
+import type { BuildRecord, ConstructorSelection } from "../types/build.js";
+import type { InSalesImageAsset, InSalesProductResponse, InSalesVariantSummary } from "./insales-client.js";
 import { insalesClient } from "./insales-client.js";
 import { composeDakimakuraPreview } from "./image-composer.js";
 
@@ -9,13 +11,15 @@ export async function processBuild(build: BuildRecord) {
   try {
     const templateProduct = await insalesClient.getProductById(build.templateProductId);
     const frontProduct = await insalesClient.getProductById(build.frontProductId);
-    const backProduct = await insalesClient.getProductById(build.backProductId);
+    const backProduct = build.backProductId
+      ? await insalesClient.getProductById(build.backProductId)
+      : frontProduct;
 
     const frontImageUrl = pickPrimaryImage(frontProduct);
     const backImageUrl = pickPrimaryImage(backProduct);
 
     if (!frontImageUrl || !backImageUrl) {
-      throw new Error("Front or back image is missing");
+      throw new Error("Preview source images were not found.");
     }
 
     const [frontBuffer, backBuffer] = await Promise.all([
@@ -28,43 +32,53 @@ export async function processBuild(build: BuildRecord) {
       backImageBuffer: backBuffer
     });
 
-    const generatedTitle = buildGeneratedTitle(templateProduct?.product ?? templateProduct, build);
+    const matchedTemplateVariant = pickTemplateVariant(templateProduct, build.selection);
+    if (!matchedTemplateVariant) {
+      throw new Error("The selected configuration could not be matched to a template variant.");
+    }
+
+    if (!templateProduct.category_id) {
+      throw new Error("Template product category_id is missing.");
+    }
+
+    const generatedTitle = buildGeneratedTitle(templateProduct, build);
     const generatedSku = buildGeneratedSku(build);
+    const variantPayload = buildGeneratedVariantPayload(matchedTemplateVariant, generatedSku, build.quantity);
 
-    const createdProductResponse = await insalesClient.createProduct({
+    const createdProduct = await insalesClient.createProduct({
+      category_id: Number(templateProduct.category_id),
       title: generatedTitle,
-      description: templateProduct?.product?.description ?? templateProduct?.description ?? "",
-      short_description: templateProduct?.product?.short_description ?? templateProduct?.short_description ?? "",
-      available: true,
-      hidden: true,
-      tags: ["generated-daki", `template-${build.templateProductId}`]
+      description: templateProduct.description ?? "",
+      short_description: templateProduct.short_description ?? "",
+      available: variantPayload.available,
+      is_hidden: true,
+      tags: buildGeneratedTags(build),
+      variants_attributes: [
+        {
+          sku: variantPayload.sku,
+          quantity: variantPayload.quantity,
+          price: variantPayload.price,
+          old_price: variantPayload.old_price
+        }
+      ]
     });
 
-    const createdProduct = createdProductResponse.product ?? createdProductResponse;
-    const matchedTemplateVariant = pickTemplateVariant(templateProduct?.product ?? templateProduct, build.selection);
+    const createdVariant = createdProduct.variants?.[0];
+    if (!createdVariant?.id) {
+      throw new Error("InSales did not return a created variant in product response.");
+    }
 
-    const createdVariantResponse = await insalesClient.createVariant(createdProduct.id, {
-      title: generatedTitle,
-      sku: generatedSku,
-      available: true,
-      quantity: matchedTemplateVariant?.quantity ?? 999,
-      price: matchedTemplateVariant?.price ?? templateProduct?.product?.price ?? templateProduct?.price ?? 0,
-      old_price: matchedTemplateVariant?.old_price ?? templateProduct?.product?.old_price ?? templateProduct?.old_price
-    });
-
-    const createdVariant = createdVariantResponse.variant ?? createdVariantResponse;
-
-    await insalesClient.uploadMainImage(
+    const uploadedImage = await insalesClient.uploadMainImage(
       createdProduct.id,
       previewBuffer,
-      `${generatedSku || `daki-${build.id}`}.jpg`
+      `${generatedSku}.jpg`
     );
 
     await markBuildReady(build.id, {
       generatedProductId: Number(createdProduct.id),
       generatedVariantId: Number(createdVariant.id),
-      generatedProductHandle: createdProduct.handle ? String(createdProduct.handle) : null,
-      previewSourceUrl: frontImageUrl
+      generatedProductHandle: createdProduct.permalink ? String(createdProduct.permalink) : null,
+      previewSourceUrl: pickPrimaryImage(uploadedImage) ?? frontImageUrl
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown build error";
@@ -73,45 +87,109 @@ export async function processBuild(build: BuildRecord) {
   }
 }
 
-function pickPrimaryImage(product: any): string | null {
-  const source = product?.product ?? product;
-  const image = source?.first_image ?? source?.images?.[0];
-  return image?.original_url ?? image?.large_url ?? image?.medium_url ?? image?.small_url ?? null;
+function pickPrimaryImage(source: InSalesProductResponse | InSalesImageAsset | null | undefined): string | null {
+  if (!source) {
+    return null;
+  }
+
+  if (isProductResponse(source)) {
+    const image = source.first_image ?? source.images?.[0] ?? null;
+    return image?.original_url ?? image?.large_url ?? image?.medium_url ?? image?.small_url ?? null;
+  }
+
+  return source.original_url ?? source.large_url ?? source.medium_url ?? source.small_url ?? null;
 }
 
-function pickTemplateVariant(product: any, selection: Record<string, string>) {
-  const variants = product?.variants ?? [];
-  return variants.find((variant: any) => {
-    const optionValues = variant.option_values ?? [];
-    const variantMap = Object.fromEntries(
-      optionValues.map((value: any) => {
-        const key = value.option_name?.handle
-          ?? value.option_name?.title
-          ?? value.option_name_title
-          ?? value.option_name_id;
-        const normalizedKey = String(key).trim().toLowerCase();
-        return [normalizedKey, String(value.title ?? value.value ?? "").trim().toLowerCase()];
-      })
-    );
+function pickTemplateVariant(product: InSalesProductResponse, selection: ConstructorSelection) {
+  const selectionByOptionId = normalizeSelection(selection);
+  const variants = product.variants ?? [];
 
-    return Object.entries(selection).every(([key, value]) => {
-      return variantMap[String(key).trim().toLowerCase()] === String(value).trim().toLowerCase();
-    });
+  return variants.find((variant) => {
+    const variantMap = new Map<number, string>();
+
+    for (const optionValue of variant.option_values ?? []) {
+      variantMap.set(
+        Number(optionValue.option_name_id),
+        String(optionValue.title ?? optionValue.value ?? "").trim().toLowerCase()
+      );
+    }
+
+    for (const [optionId, selectedValue] of selectionByOptionId.entries()) {
+      if (variantMap.get(optionId) !== selectedValue) {
+        return false;
+      }
+    }
+
+    return true;
   }) ?? variants[0] ?? null;
 }
 
-function buildGeneratedTitle(templateProduct: any, build: BuildRecord) {
-  const baseTitle = templateProduct?.title ?? "Дакимакура";
+function normalizeSelection(selection: ConstructorSelection) {
+  const result = new Map<number, string>();
+
+  for (const [key, value] of Object.entries(selection)) {
+    const match = key.match(/^option-(\d+)(?:-|$)/i);
+    if (!match) {
+      continue;
+    }
+
+    result.set(Number(match[1]), String(value).trim().toLowerCase());
+  }
+
+  return result;
+}
+
+function buildGeneratedTitle(templateProduct: InSalesProductResponse, build: BuildRecord) {
+  const baseTitle = templateProduct.title ?? "Dakimakura";
   const selectionText = Object.values(build.selection).join(" / ");
-  return `${baseTitle} / ${selectionText} / ${build.id.slice(-6)}`;
+  return selectionText
+    ? `${baseTitle} / ${selectionText} / ${build.id.slice(-6)}`
+    : `${baseTitle} / ${build.id.slice(-6)}`;
 }
 
 function buildGeneratedSku(build: BuildRecord) {
-  const selection = Object.values(build.selection)
-    .join("-")
-    .toUpperCase()
-    .replace(/[^A-Z0-9А-ЯЁ]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+  const digest = crypto
+    .createHash("sha1")
+    .update(JSON.stringify({
+      frontProductId: build.frontProductId,
+      backProductId: build.backProductId,
+      selection: build.selection
+    }))
+    .digest("hex")
+    .slice(0, 10)
+    .toUpperCase();
 
-  return `DAKI-${selection}-${build.frontProductId}-${build.backProductId}`.slice(0, 64);
+  return `DAKI-${build.id.slice(-6).toUpperCase()}-${digest}`;
+}
+
+function buildGeneratedVariantPayload(
+  templateVariant: InSalesVariantSummary,
+  sku: string,
+  requestedQuantity: number
+) {
+  const price = Number(templateVariant.price ?? templateVariant.base_price ?? 0);
+  const oldPrice = templateVariant.old_price ? Number(templateVariant.old_price) : undefined;
+  const templateQuantity = Number(templateVariant.quantity ?? 0);
+
+  return {
+    sku,
+    quantity: Math.max(templateQuantity, requestedQuantity, 1),
+    available: templateVariant.available !== false,
+    price,
+    old_price: oldPrice
+  };
+}
+
+function buildGeneratedTags(build: BuildRecord) {
+  return [
+    "generated-daki",
+    "constructor",
+    `template-${build.templateProductId}`,
+    `front-${build.frontProductId}`,
+    build.backProductId ? `back-${build.backProductId}` : "back-none"
+  ];
+}
+
+function isProductResponse(source: InSalesProductResponse | InSalesImageAsset): source is InSalesProductResponse {
+  return "category_id" in source;
 }
