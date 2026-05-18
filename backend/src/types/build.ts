@@ -7,7 +7,7 @@ export interface ConstructorSelection {
 export interface ConstructorBuildRequest {
   templateProductId: number;
   frontProductId: number;
-  backProductId: number;
+  backProductId: number | null;
   quantity: number;
   selection: ConstructorSelection;
 }
@@ -17,7 +17,7 @@ export interface BuildRecord {
   status: BuildStatus;
   templateProductId: number;
   frontProductId: number;
-  backProductId: number;
+  backProductId: number | null;
   quantity: number;
   selection: ConstructorSelection;
   buildSignature: string;
