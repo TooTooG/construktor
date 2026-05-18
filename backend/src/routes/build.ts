@@ -29,9 +29,12 @@ export function registerBuildRoutes(app: FastifyInstance) {
     return {
       buildId: build.id,
       status: build.status,
+      generatedProductId: build.generatedProductId,
+      generatedVariantId: build.generatedVariantId,
       productId: build.generatedProductId,
       variantId: build.generatedVariantId,
       productHandle: build.generatedProductHandle,
+      errorText: build.errorText,
       error: build.errorText
     };
   });
