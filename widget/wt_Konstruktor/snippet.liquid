@@ -1,0 +1,208 @@
+{% assign template_product_id = widget_settings.template_product_id | strip %}
+{% assign template_product = null %}
+{% if template_product_id != blank %}
+  {% assign template_product = all_products[template_product_id] %}
+{% endif %}
+
+{% assign front_handle = widget_settings.front_collection_handle | strip %}
+{% assign back_handle = widget_settings.back_collection_handle | strip %}
+{% assign front_collection = nil %}
+{% assign back_collection = nil %}
+{% if front_handle != blank %}
+  {% assign front_collection = collections[front_handle] %}
+{% endif %}
+{% if back_handle != blank %}
+  {% assign back_collection = collections[back_handle] %}
+{% endif %}
+
+{% assign title = widget_settings.title | strip %}
+{% if title == blank and template_product %}
+  {% assign title = template_product.title %}
+{% endif %}
+
+{% assign submit_text = widget_settings.submit_text | default: 'В корзину' %}
+{% assign show_description = widget_settings.show_description %}
+{% assign show_properties = widget_settings.show_properties %}
+{% assign require_back_selection = widget_settings.require_back_selection %}
+{% assign backend_url = widget_settings.backend_url | strip %}
+
+{% capture front_products_json %}
+[
+{% if front_collection and front_collection.products_count > 0 %}
+  {% for image_product in front_collection.products %}
+    {
+      "id": {{ image_product.id }},
+      "title": {{ image_product.title | json }},
+      "url": {{ image_product.url | json }},
+      "image": {{ image_product.first_image.large_url | default: image_product.first_image.original_url | json }}
+    }{% unless forloop.last %},{% endunless %}
+  {% endfor %}
+{% endif %}
+]
+{% endcapture %}
+
+{% capture back_products_json %}
+[
+{% if back_collection and back_collection.products_count > 0 %}
+  {% for image_product in back_collection.products %}
+    {
+      "id": {{ image_product.id }},
+      "title": {{ image_product.title | json }},
+      "url": {{ image_product.url | json }},
+      "image": {{ image_product.first_image.large_url | default: image_product.first_image.original_url | json }}
+    }{% unless forloop.last %},{% endunless %}
+  {% endfor %}
+{% endif %}
+]
+{% endcapture %}
+
+<div
+  class="dakimakura-constructor"
+  data-dakimakura-constructor
+  data-template-product-id="{{ template_product_id }}"
+  data-title="{{ title | escape }}"
+  data-submit-text="{{ submit_text | escape }}"
+  data-require-back-selection="{{ require_back_selection }}"
+  data-show-description="{{ show_description }}"
+  data-show-properties="{{ show_properties }}"
+  data-backend-url="{{ backend_url | escape }}"
+  style="--dakimakura-padding-top: {{ widget_settings.padding_top | default: 32 }}px; --dakimakura-padding-bottom: {{ widget_settings.padding_bottom | default: 32 }}px; --dakimakura-preview-ratio: {{ widget_settings.preview_aspect_ratio | default: '10 / 24' }};"
+>
+  <div class="dakimakura-constructor__inner">
+    <div class="dakimakura-constructor__preview-column">
+      <div class="dakimakura-constructor__preview-stack">
+        <section class="dakimakura-constructor__preview-card" data-side="front">
+          <div class="dakimakura-constructor__preview-media">
+            <img class="dakimakura-constructor__preview-image" data-preview-image="front" alt="Лицевая сторона" loading="lazy">
+            <div class="dakimakura-constructor__preview-placeholder" data-preview-placeholder="front">
+              <span>Выберите изображение</span>
+            </div>
+          </div>
+          <div class="dakimakura-constructor__preview-footer">
+            <div>
+              <p class="dakimakura-constructor__preview-title">Лицевая сторона</p>
+              <p class="dakimakura-constructor__preview-name" data-preview-name="front">Фото не выбрано</p>
+            </div>
+            <button type="button" class="dakimakura-constructor__picker-button" data-open-picker="front">
+              Выбрать фото
+            </button>
+          </div>
+        </section>
+
+        <section class="dakimakura-constructor__preview-card" data-side="back">
+          <div class="dakimakura-constructor__preview-media">
+            <img class="dakimakura-constructor__preview-image" data-preview-image="back" alt="Обратная сторона" loading="lazy">
+            <div class="dakimakura-constructor__preview-placeholder" data-preview-placeholder="back">
+              <span>Выберите изображение</span>
+            </div>
+          </div>
+          <div class="dakimakura-constructor__preview-footer">
+            <div>
+              <p class="dakimakura-constructor__preview-title">Обратная сторона</p>
+              <p class="dakimakura-constructor__preview-name" data-preview-name="back">Фото не выбрано</p>
+            </div>
+            <button type="button" class="dakimakura-constructor__picker-button" data-open-picker="back">
+              Выбрать фото
+            </button>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <div class="dakimakura-constructor__details-column">
+      <header class="dakimakura-constructor__header">
+        <p class="dakimakura-constructor__eyebrow">Конструктор</p>
+        <h2 class="dakimakura-constructor__title" data-product-title>{{ title | default: 'Соберите свою дакимакуру' }}</h2>
+        <div class="dakimakura-constructor__price-row" data-price-row hidden>
+          <span class="dakimakura-constructor__price-current" data-product-price></span>
+          <span class="dakimakura-constructor__price-old" data-product-old-price hidden></span>
+        </div>
+      </header>
+
+      <div class="dakimakura-constructor__status" data-status hidden></div>
+
+      {% if backend_url == blank %}
+        <div class="dakimakura-constructor__notice">
+          Укажите адрес backend-сервиса в настройках виджета, чтобы включить оформление заказа.
+        </div>
+      {% endif %}
+
+      <form class="dakimakura-constructor__form" data-constructor-form>
+        <div class="dakimakura-constructor__options" data-options-root></div>
+
+        <div class="dakimakura-constructor__meta" data-meta-root>
+          {% if show_description and template_product and template_product.description != blank %}
+            <div class="dakimakura-constructor__description" data-description>
+              {{ template_product.description }}
+            </div>
+          {% endif %}
+
+          {% if show_properties and template_product and template_product.properties.size > 0 %}
+            <dl class="dakimakura-constructor__properties" data-properties>
+              {% for property in template_product.properties %}
+                {% if property.characteristics != blank %}
+                  <div class="dakimakura-constructor__property">
+                    <dt>{{ property.title }}</dt>
+                    <dd>{{ property.characteristics }}</dd>
+                  </div>
+                {% endif %}
+              {% endfor %}
+            </dl>
+          {% endif %}
+        </div>
+
+        <div class="dakimakura-constructor__purchase-row">
+          <label class="dakimakura-constructor__quantity">
+            <span>Количество</span>
+            <input type="number" name="quantity" min="1" step="1" value="1" inputmode="numeric" data-quantity>
+          </label>
+
+          <button type="submit" class="dakimakura-constructor__submit" data-submit>
+            {{ submit_text }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="dakimakura-modal" data-picker-modal hidden>
+    <div class="dakimakura-modal__backdrop" data-close-picker></div>
+    <div class="dakimakura-modal__dialog" role="dialog" aria-modal="true" aria-label="Каталог принтов">
+      <div class="dakimakura-modal__header">
+        <h3 class="dakimakura-modal__title" data-modal-title>Каталог принтов</h3>
+        <button type="button" class="dakimakura-modal__close" data-close-picker aria-label="Закрыть">
+          ×
+        </button>
+      </div>
+
+      <div class="dakimakura-modal__toolbar">
+        <input
+          type="search"
+          class="dakimakura-modal__search"
+          data-modal-search
+          placeholder="Фильтр по названию"
+          autocomplete="off"
+        >
+      </div>
+
+      <div class="dakimakura-modal__content" data-modal-content></div>
+      <div class="dakimakura-modal__empty" data-modal-empty hidden>Ничего не найдено. Попробуйте другой запрос.</div>
+
+      <div class="dakimakura-modal__footer">
+        <button type="button" class="dakimakura-modal__action dakimakura-modal__action--ghost" data-close-picker>
+          Отмена
+        </button>
+        <button type="button" class="dakimakura-modal__action" data-modal-confirm disabled>
+          Ок
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script type="application/json" data-front-products>
+    {{ front_products_json | strip }}
+  </script>
+  <script type="application/json" data-back-products>
+    {{ back_products_json | strip }}
+  </script>
+</div>
