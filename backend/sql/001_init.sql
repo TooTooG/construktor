@@ -3,7 +3,7 @@ create table if not exists constructor_builds (
   status text not null,
   template_product_id bigint not null,
   front_product_id bigint not null,
-  back_product_id bigint not null,
+  back_product_id bigint,
   quantity integer not null default 1,
   selection_json jsonb not null,
   build_signature text not null,
