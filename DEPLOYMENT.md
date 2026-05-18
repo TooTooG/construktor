@@ -1,69 +1,103 @@
-# Развёртывание проекта
+# Развертывание
 
-## 1. Структура
+## 1. Что понадобится
 
-- `widget/wt_Konstruktor/`: виджет InSales
-- `backend/`: внешний сервис для создания реальных товаров
+- аккаунт GitHub с репозиторием `TooTooG/construktor`;
+- магазин InSales и доступ к Admin API;
+- Render-аккаунт;
+- шаблонный товар дакимакуры в InSales;
+- две скрытые коллекции с половинками принтов.
 
-## 2. Локальная подготовка
+## 2. Подготовка InSales
 
-1. Установить зависимости:
-   - `cd backend`
-   - `npm.cmd install`
-2. Создать `.env` на основе `backend/.env.example`
-3. Поднять Postgres и выполнить `backend/sql/001_init.sql`
-4. Проверить проект:
-   - `npm.cmd run check`
-   - `npm.cmd run dev`
+1. Создайте один товар-шаблон для дакимакуры.
+2. Убедитесь, что у него настроены реальные варианты:
+   - размер;
+   - материал;
+   - другие параметры, влияющие на цену.
+3. Создайте скрытые коллекции:
+   - для лицевых сторон;
+   - для обратных сторон.
+4. Подготовьте доступ к Admin API.
 
-## 3. Что нужно в InSales
+Сервис поддерживает два варианта авторизации:
 
-1. Товар-шаблон дакимакуры
-2. Скрытые коллекции половинок
-3. Доступы приложения/API с правом:
-   - читать товары
-   - создавать товары
-   - создавать варианты
-   - загружать изображения
+- `INSALES_API_KEY + INSALES_API_PASSWORD`
+- или `INSALES_ACCESS_TOKEN`
 
-## 4. Deploy на Render
+По официальной документации `api.insales.ru` основной формат запросов для Admin API показан через `Authorization: Basic ...`, поэтому для первого запуска лучше использовать именно `API_KEY` и `API_PASSWORD`.
 
-1. Создать GitHub-репозиторий и загрузить проект
-2. Создать `Render Postgres`
-3. Создать `Web Service` из папки `backend`
-4. Build command:
-   - `npm install && npm run build`
-5. Start command:
-   - `npm run start`
-6. Добавить env vars:
-   - `PORT`
-   - `NODE_ENV=production`
+## 3. Локальная проверка backend
+
+```powershell
+cd backend
+npm.cmd install
+npm.cmd run check
+npm.cmd run build
+```
+
+Создайте `.env` на основе `backend/.env.example`.
+
+## 4. База данных
+
+Создайте Postgres и выполните SQL:
+
+- `backend/sql/001_init.sql`
+
+Таблица `constructor_builds` хранит:
+
+- исходную конфигурацию;
+- статус сборки;
+- id созданного товара;
+- id созданного варианта;
+- текст ошибки, если сборка не удалась.
+
+## 5. Развертывание на Render
+
+В проект уже добавлен `render.yaml`.
+
+Порядок:
+
+1. Подключите репозиторий к Render.
+2. Создайте Blueprint deploy из `render.yaml`.
+3. После создания сервиса заполните переменные:
    - `APP_BASE_URL`
-   - `DATABASE_URL`
    - `INSALES_SHOP_URL`
-   - `INSALES_ACCESS_TOKEN`
-   - при необходимости `INSALES_API_KEY`
-   - при необходимости `INSALES_API_PASSWORD`
-7. Указать health check path:
-   - `/health`
-8. В виджете InSales указать `URL backend сервиса`:
-   - например `https://daki-constructor.onrender.com`
+   - `INSALES_API_KEY`
+   - `INSALES_API_PASSWORD`
+   - или `INSALES_ACCESS_TOKEN`
+4. Дождитесь успешного deploy.
+5. Проверьте `GET /health`.
 
-## 5. Фронтенд-поток
+## 6. Подключение виджета
 
-1. Виджет собирает конфигурацию пользователя
-2. Вместо прямого add-to-cart вызывает:
-   - `POST /api/constructor/build`
-3. Получает `buildId`
-4. Опрашивает:
-   - `GET /api/constructor/build/:id`
-5. Когда статус `ready`, берет `variantId`
-6. Добавляет в корзину уже реальный созданный variant
+После деплоя backend:
 
-## 6. Ближайшие доработки
+1. Импортируйте `widget/wt_Konstruktor` в тему InSales.
+2. На нужной странице откройте настройки виджета.
+3. Заполните:
+   - `template_product_id`
+   - `front_collection_handle`
+   - `back_collection_handle`
+   - `backend_url`
+4. Сохраните страницу.
 
-1. Подключить реальный InSales auth-формат под ваш магазин
-2. Привести `pickTemplateVariant()` к вашей конкретной модели option names
-3. Переписать виджет на вызов backend вместо прямой отправки формы
-4. Добавить очистку старых generated products
-5. Добавить worker, если сборка preview станет тяжелой
+## 7. Тестовый сценарий
+
+1. Откройте страницу конструктора.
+2. Выберите лицевую и обратную стороны.
+3. Выберите размер и материал.
+4. Нажмите кнопку добавления в корзину.
+5. Убедитесь, что:
+   - backend создал запись в `constructor_builds`;
+   - в InSales появился новый hidden product;
+   - у товара есть сгенерированное главное изображение;
+   - в корзину попал новый `variant_id`.
+
+## 8. Что еще стоит сделать после первого запуска
+
+- cleanup старых generated products;
+- webhook или cron для удаления брошенных сборок;
+- логирование ответов InSales API;
+- защита от дублирующих запросов на одинаковую сборку;
+- отдельный worker, если сборка preview станет тяжелее.
