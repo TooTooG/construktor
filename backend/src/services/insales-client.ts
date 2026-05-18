@@ -5,47 +5,81 @@ type HttpMethod = "GET" | "POST" | "PUT" | "DELETE";
 export interface InSalesImageAsset {
   id: number;
   original_url?: string;
+  large_url?: string;
   medium_url?: string;
   small_url?: string;
 }
 
+export interface InSalesVariantSummary {
+  id: number;
+  title?: string;
+  sku?: string;
+  quantity?: number;
+  available?: boolean;
+  price?: string | number;
+  base_price?: string | number;
+  old_price?: string | number | null;
+  option_values?: Array<{
+    option_name_id: number;
+    title?: string;
+    value?: string;
+  }>;
+}
+
+export interface InSalesProductResponse {
+  id: number;
+  category_id: number;
+  title: string;
+  description?: string | null;
+  short_description?: string | null;
+  permalink?: string | null;
+  available?: boolean;
+  is_hidden?: boolean;
+  archived?: boolean;
+  first_image?: InSalesImageAsset | null;
+  images?: InSalesImageAsset[];
+  option_names?: Array<{
+    id: number;
+    title?: string;
+    permalink?: string | null;
+    api_permalink?: string | null;
+  }>;
+  variants?: InSalesVariantSummary[];
+}
+
 export interface InSalesProductPayload {
+  category_id: number;
   title: string;
   short_description?: string;
   description?: string;
   available?: boolean;
   archived?: boolean;
-  hidden?: boolean;
+  is_hidden?: boolean;
   tags?: string[];
-}
-
-export interface InSalesVariantPayload {
-  title: string;
-  sku?: string;
-  quantity?: number;
-  available?: boolean;
-  price: number;
-  old_price?: number;
+  variants_attributes: Array<{
+    sku?: string;
+    quantity: number;
+    price: number;
+    old_price?: number;
+  }>;
 }
 
 export class InSalesClient {
-  async getProductById(productId: number) {
+  async getProductById(productId: number): Promise<InSalesProductResponse> {
     return this.request(`/admin/products/${productId}.json`, "GET");
   }
 
-  async createProduct(payload: InSalesProductPayload) {
+  async createProduct(payload: InSalesProductPayload): Promise<InSalesProductResponse> {
     return this.request("/admin/products.json", "POST", { product: payload });
   }
 
-  async createVariant(productId: number, payload: InSalesVariantPayload) {
-    return this.request(`/admin/products/${productId}/variants.json`, "POST", { variant: payload });
-  }
-
-  async uploadMainImage(productId: number, previewBuffer: Buffer, fileName: string) {
+  async uploadMainImage(productId: number, previewBuffer: Buffer, fileName: string): Promise<InSalesImageAsset> {
     return this.request(`/admin/products/${productId}/images.json`, "POST", {
       image: {
         attachment: previewBuffer.toString("base64"),
-        filename: fileName
+        filename: fileName,
+        title: fileName,
+        position: 1
       }
     });
   }
@@ -65,7 +99,7 @@ export class InSalesClient {
       method,
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${env.INSALES_ACCESS_TOKEN}`
+        Authorization: buildAuthorizationHeader()
       },
       body: body ? JSON.stringify(body) : undefined
     });
@@ -75,8 +109,22 @@ export class InSalesClient {
       throw new Error(`InSales API ${method} ${path} failed: ${response.status} ${text}`);
     }
 
-    return response.json();
+    const contentType = response.headers.get("content-type") ?? "";
+    if (contentType.includes("application/json")) {
+      return response.json();
+    }
+
+    return response.text();
   }
 }
 
 export const insalesClient = new InSalesClient();
+
+function buildAuthorizationHeader() {
+  if (env.INSALES_API_KEY && env.INSALES_API_PASSWORD) {
+    const raw = `${env.INSALES_API_KEY}:${env.INSALES_API_PASSWORD}`;
+    return `Basic ${Buffer.from(raw).toString("base64")}`;
+  }
+
+  return `Bearer ${env.INSALES_ACCESS_TOKEN}`;
+}
