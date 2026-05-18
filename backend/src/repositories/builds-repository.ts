@@ -105,7 +105,7 @@ function buildSignature(payload: ConstructorBuildRequest) {
   return [
     payload.templateProductId,
     payload.frontProductId,
-    payload.backProductId,
+    payload.backProductId ?? "none",
     payload.quantity,
     normalizedSelection
   ].join("::");
@@ -117,7 +117,7 @@ function mapRow(row: Record<string, unknown>): BuildRecord {
     status: row.status as BuildStatus,
     templateProductId: Number(row.template_product_id),
     frontProductId: Number(row.front_product_id),
-    backProductId: Number(row.back_product_id),
+    backProductId: row.back_product_id ? Number(row.back_product_id) : null,
     quantity: Number(row.quantity),
     selection: row.selection_json as Record<string, string>,
     buildSignature: String(row.build_signature),
