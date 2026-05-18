@@ -1,0 +1,14 @@
+{
+  "template_product_id": "",
+  "front_collection_handle": "",
+  "back_collection_handle": "",
+  "backend_url": "",
+  "title": "",
+  "submit_text": "В корзину",
+  "preview_aspect_ratio": "10 / 24",
+  "padding_top": 32,
+  "padding_bottom": 32,
+  "require_back_selection": true,
+  "show_description": true,
+  "show_properties": true
+}
