@@ -1,0 +1,33 @@
+databases:
+  - name: daki-constructor-db
+    databaseName: daki_constructor
+    user: daki_constructor
+
+services:
+  - type: web
+    name: daki-constructor-backend
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      - key: APP_BASE_URL
+        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: daki-constructor-db
+          property: connectionString
+      - key: INSALES_SHOP_URL
+        sync: false
+      - key: INSALES_API_KEY
+        sync: false
+      - key: INSALES_API_PASSWORD
+        sync: false
+      - key: INSALES_ACCESS_TOKEN
+        sync: false
