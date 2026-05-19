@@ -101,7 +101,7 @@ function pickPrimaryImage(source: InSalesProductResponse | InSalesImageAsset | n
 }
 
 function pickTemplateVariant(product: InSalesProductResponse, selection: ConstructorSelection) {
-  const selectionByOptionId = normalizeSelection(selection);
+  const selectionByOptionId = normalizeSelection(product, selection);
   const variants = product.variants ?? [];
 
   return variants.find((variant) => {
@@ -124,19 +124,52 @@ function pickTemplateVariant(product: InSalesProductResponse, selection: Constru
   }) ?? variants[0] ?? null;
 }
 
-function normalizeSelection(selection: ConstructorSelection) {
+function normalizeSelection(product: InSalesProductResponse, selection: ConstructorSelection) {
   const result = new Map<number, string>();
+  const optionNames = product.option_names ?? [];
+  const optionNameLookup = new Map<string, number>();
+
+  for (const optionName of optionNames) {
+    const optionId = Number(optionName.id);
+    const aliases = [
+      optionName.permalink,
+      optionName.api_permalink,
+      optionName.title
+    ];
+
+    for (const alias of aliases) {
+      const normalizedAlias = normalizeOptionKey(alias);
+      if (normalizedAlias) {
+        optionNameLookup.set(normalizedAlias, optionId);
+      }
+    }
+  }
 
   for (const [key, value] of Object.entries(selection)) {
     const match = key.match(/^option-(\d+)(?:-|$)/i);
-    if (!match) {
+    let optionId: number | null = null;
+
+    if (match) {
+      optionId = Number(match[1]);
+    } else {
+      optionId = optionNameLookup.get(normalizeOptionKey(key)) ?? null;
+    }
+
+    if (!optionId) {
       continue;
     }
 
-    result.set(Number(match[1]), String(value).trim().toLowerCase());
+    result.set(optionId, String(value).trim().toLowerCase());
   }
 
   return result;
+}
+
+function normalizeOptionKey(value: string | null | undefined) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-");
 }
 
 function buildGeneratedTitle(templateProduct: InSalesProductResponse, build: BuildRecord) {
