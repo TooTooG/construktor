@@ -85,9 +85,18 @@ export class InSalesClient {
   }
 
   async fetchImageBuffer(url: string) {
-    const response = await fetch(url);
+    const resolvedUrl = resolveExternalUrl(url);
+    let response: Response;
+
+    try {
+      response = await fetch(resolvedUrl);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to fetch image ${resolvedUrl}: ${reason}`);
+    }
+
     if (!response.ok) {
-      throw new Error(`Failed to fetch image: ${response.status}`);
+      throw new Error(`Failed to fetch image ${resolvedUrl}: ${response.status}`);
     }
 
     return Buffer.from(await response.arrayBuffer());
@@ -95,14 +104,21 @@ export class InSalesClient {
 
   private async request(path: string, method: HttpMethod, body?: unknown) {
     const requestUrl = new URL(path, env.INSALES_SHOP_URL).toString();
-    const response = await fetch(requestUrl, {
-      method,
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: buildAuthorizationHeader()
-      },
-      body: body ? JSON.stringify(body) : undefined
-    });
+    let response: Response;
+
+    try {
+      response = await fetch(requestUrl, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: buildAuthorizationHeader()
+        },
+        body: body ? JSON.stringify(body) : undefined
+      });
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      throw new Error(`InSales API ${method} ${path} request failed: ${reason}`);
+    }
 
     if (!response.ok) {
       const text = await response.text();
@@ -127,4 +143,16 @@ function buildAuthorizationHeader() {
   }
 
   return `Bearer ${env.INSALES_ACCESS_TOKEN}`;
+}
+
+function resolveExternalUrl(url: string) {
+  if (/^https?:\/\//i.test(url)) {
+    return url;
+  }
+
+  if (url.startsWith("//")) {
+    return `https:${url}`;
+  }
+
+  return new URL(url, env.INSALES_SHOP_URL).toString();
 }
