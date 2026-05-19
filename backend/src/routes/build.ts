@@ -8,7 +8,14 @@ export function registerBuildRoutes(app: FastifyInstance) {
     const payload = buildRequestSchema.parse(request.body);
     const build = await createPendingBuild(payload);
 
-    processBuild(build).catch((error) => {
+    try {
+      await processBuild(build);
+
+      return reply.code(202).send({
+        buildId: build.id,
+        status: "ready"
+      });
+    } catch (error) {
       if (error instanceof Error) {
         request.log.error(
           {
@@ -18,16 +25,19 @@ export function registerBuildRoutes(app: FastifyInstance) {
           },
           "build_processing_failed"
         );
-        return;
+
+        return reply.code(500).send({
+          message: error.message,
+          buildId: build.id
+        });
       }
 
       request.log.error({ buildId: build.id, error }, "build_processing_failed");
-    });
-
-    return reply.code(202).send({
-      buildId: build.id,
-      status: build.status
-    });
+      return reply.code(500).send({
+        message: "Build processing failed",
+        buildId: build.id
+      });
+    }
   });
 
   app.get("/api/constructor/build/:id", async (request, reply) => {
