@@ -9,7 +9,19 @@ export function registerBuildRoutes(app: FastifyInstance) {
     const build = await createPendingBuild(payload);
 
     processBuild(build).catch((error) => {
-      request.log.error({ error, buildId: build.id }, "build_processing_failed");
+      if (error instanceof Error) {
+        request.log.error(
+          {
+            buildId: build.id,
+            errorMessage: error.message,
+            errorStack: error.stack
+          },
+          "build_processing_failed"
+        );
+        return;
+      }
+
+      request.log.error({ buildId: build.id, error }, "build_processing_failed");
     });
 
     return reply.code(202).send({
