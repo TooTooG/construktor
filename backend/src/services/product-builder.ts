@@ -51,7 +51,7 @@ export async function processBuild(build: BuildRecord) {
       description: templateProduct.description ?? "",
       short_description: templateProduct.short_description ?? "",
       available: variantPayload.available,
-      is_hidden: true,
+      is_hidden: false,
       tags: buildGeneratedTags(build),
       variants_attributes: [
         {
@@ -74,11 +74,17 @@ export async function processBuild(build: BuildRecord) {
       `${generatedSku}.jpg`
     );
 
+    const refreshedProduct = await insalesClient.getProductById(createdProduct.id);
+
     await markBuildReady(build.id, {
-      generatedProductId: Number(createdProduct.id),
+      generatedProductId: Number(refreshedProduct.id),
       generatedVariantId: Number(createdVariant.id),
-      generatedProductHandle: createdProduct.permalink ? String(createdProduct.permalink) : null,
-      previewSourceUrl: pickPrimaryImage(uploadedImage) ?? frontImageUrl
+      generatedProductHandle: refreshedProduct.permalink
+        ? String(refreshedProduct.permalink)
+        : createdProduct.permalink
+          ? String(createdProduct.permalink)
+          : null,
+      previewSourceUrl: pickPrimaryImage(refreshedProduct) ?? pickPrimaryImage(uploadedImage) ?? frontImageUrl
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown build error";
