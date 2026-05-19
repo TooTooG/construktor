@@ -6,4 +6,10 @@ export function registerHealthRoutes(app: FastifyInstance) {
       status: "ok"
     };
   });
+
+  app.get("/api/health", async () => {
+    return {
+      status: "ok"
+    };
+  });
 }
