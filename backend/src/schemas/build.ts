@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export const buildRequestSchema = z.object({
   templateProductId: z.coerce.number().int().positive(),
+  templateVariantId: z.coerce.number().int().positive().nullable().optional().transform((value) => value ?? null),
   frontProductId: z.coerce.number().int().positive(),
   backProductId: z.coerce.number().int().positive().nullable().optional().transform((value) => value ?? null),
   quantity: z.coerce.number().int().positive().default(1),
