@@ -6,6 +6,7 @@ export interface ConstructorSelection {
 
 export interface ConstructorBuildRequest {
   templateProductId: number;
+  templateVariantId?: number | null;
   frontProductId: number;
   backProductId: number | null;
   quantity: number;
@@ -16,6 +17,7 @@ export interface BuildRecord {
   id: string;
   status: BuildStatus;
   templateProductId: number;
+  templateVariantId?: number | null;
   frontProductId: number;
   backProductId: number | null;
   quantity: number;
