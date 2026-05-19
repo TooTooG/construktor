@@ -28,7 +28,10 @@ export async function createPendingBuild(payload: ConstructorBuildRequest): Prom
     ]
   );
 
-  return mapRow(result.rows[0]);
+  return {
+    ...mapRow(result.rows[0]),
+    templateVariantId: payload.templateVariantId ?? null
+  };
 }
 
 export async function findBuildById(id: string): Promise<BuildRecord | null> {
@@ -104,6 +107,7 @@ function buildSignature(payload: ConstructorBuildRequest) {
 
   return [
     payload.templateProductId,
+    payload.templateVariantId ?? "no-variant",
     payload.frontProductId,
     payload.backProductId ?? "none",
     payload.quantity,
@@ -116,6 +120,7 @@ function mapRow(row: Record<string, unknown>): BuildRecord {
     id: String(row.id),
     status: row.status as BuildStatus,
     templateProductId: Number(row.template_product_id),
+    templateVariantId: null,
     frontProductId: Number(row.front_product_id),
     backProductId: row.back_product_id ? Number(row.back_product_id) : null,
     quantity: Number(row.quantity),
