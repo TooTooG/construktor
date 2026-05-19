@@ -1,6 +1,5 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
-import sensible from "@fastify/sensible";
 import { env } from "./config/env.js";
 import { closeDb, pingDb } from "./lib/db.js";
 import { registerBuildRoutes } from "./routes/build.js";
@@ -14,8 +13,6 @@ app.register(cors, {
   origin: true,
   credentials: false
 });
-
-app.register(sensible);
 
 app.get("/", async () => {
   return {
