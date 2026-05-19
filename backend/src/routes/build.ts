@@ -23,7 +23,9 @@ export function registerBuildRoutes(app: FastifyInstance) {
     const build = await findBuildById(params.id);
 
     if (!build) {
-      return reply.notFound("Build not found");
+      return reply.code(404).send({
+        message: "Build not found"
+      });
     }
 
     return {
