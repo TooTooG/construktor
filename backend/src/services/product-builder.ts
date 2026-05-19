@@ -32,7 +32,7 @@ export async function processBuild(build: BuildRecord) {
       backImageBuffer: backBuffer
     });
 
-    const matchedTemplateVariant = pickTemplateVariant(templateProduct, build.selection);
+    const matchedTemplateVariant = pickTemplateVariant(templateProduct, build);
     if (!matchedTemplateVariant) {
       throw new Error("The selected configuration could not be matched to a template variant.");
     }
@@ -106,9 +106,27 @@ function pickPrimaryImage(source: InSalesProductResponse | InSalesImageAsset | n
   return source.original_url ?? source.large_url ?? source.medium_url ?? source.small_url ?? null;
 }
 
-function pickTemplateVariant(product: InSalesProductResponse, selection: ConstructorSelection) {
+function pickTemplateVariant(product: InSalesProductResponse, build: BuildRecord) {
+  const explicitVariantId = build.templateVariantId ? Number(build.templateVariantId) : null;
+  const variants = product.variants ?? [];
+
+  if (explicitVariantId) {
+    const exactVariant = variants.find((variant) => Number(variant.id) === explicitVariantId) ?? null;
+    if (exactVariant) {
+      return exactVariant;
+    }
+  }
+
+  return pickTemplateVariantBySelection(product, build.selection);
+}
+
+function pickTemplateVariantBySelection(product: InSalesProductResponse, selection: ConstructorSelection) {
   const selectionByOptionId = normalizeSelection(product, selection);
   const variants = product.variants ?? [];
+
+  if (!selectionByOptionId.size) {
+    return null;
+  }
 
   return variants.find((variant) => {
     const variantMap = new Map<number, string>();
@@ -127,7 +145,7 @@ function pickTemplateVariant(product: InSalesProductResponse, selection: Constru
     }
 
     return true;
-  }) ?? variants[0] ?? null;
+  }) ?? null;
 }
 
 function normalizeSelection(product: InSalesProductResponse, selection: ConstructorSelection) {
