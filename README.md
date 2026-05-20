@@ -33,12 +33,4 @@
   - `padding_bottom`
   - `preview_aspect_ratio`
 
-## Следующие шаги
-
-1. Поднять backend на Render.
-2. Заполнить переменные окружения InSales.
-3. Выполнить SQL из `backend/sql/001_init.sql`.
-4. Импортировать виджет в тему.
-5. Указать `backend_url` в настройках виджета.
-
 Подробное развертывание: `DEPLOYMENT.md`
