@@ -1,74 +1,87 @@
-[
-  {
-    "type": "text",
-    "name": "template_product_id",
-    "label": "ID товара-шаблона",
-    "hint": "Один товар InSales, из которого берутся варианты, описание, цена и остатки."
-  },
-  {
-    "type": "text",
-    "name": "front_collection_handle",
-    "label": "Handle коллекции лицевых сторон",
-    "hint": "Скрытая коллекция с товарами-картинками для лицевой стороны."
-  },
-  {
-    "type": "text",
-    "name": "back_collection_handle",
-    "label": "Handle коллекции обратных сторон",
-    "hint": "Скрытая коллекция с товарами-картинками для обратной стороны."
-  },
-  {
-    "type": "text",
-    "name": "backend_url",
-    "label": "URL backend-сервиса",
-    "hint": "Полный адрес внешнего сервиса, который создает товар в InSales. Например: https://daki-builder.onrender.com"
-  },
-  {
-    "type": "text",
-    "name": "title",
-    "label": "Заголовок блока",
-    "hint": "Если пусто, используется название товара-шаблона."
-  },
-  {
-    "type": "text",
-    "name": "submit_text",
-    "label": "Текст кнопки",
-    "hint": "Подпись основной кнопки покупки."
-  },
-  {
-    "type": "text",
-    "name": "preview_aspect_ratio",
-    "label": "Соотношение сторон превью",
-    "hint": "CSS-значение aspect-ratio, например 10 / 24 или 1 / 2.4."
-  },
-  {
-    "type": "number",
-    "name": "padding_top",
-    "label": "Отступ сверху",
-    "hint": "Внутренний отступ секции сверху в пикселях."
-  },
-  {
-    "type": "number",
-    "name": "padding_bottom",
-    "label": "Отступ снизу",
-    "hint": "Внутренний отступ секции снизу в пикселях."
-  },
-  {
-    "type": "checkbox",
-    "name": "require_back_selection",
-    "label": "Обязательный выбор обратной стороны",
-    "hint": "Если выключить, можно добавлять товар только с лицевой стороной."
-  },
-  {
-    "type": "checkbox",
-    "name": "show_description",
-    "label": "Показывать описание товара",
-    "hint": "Показывать текст описания из товара-шаблона."
-  },
-  {
-    "type": "checkbox",
-    "name": "show_properties",
-    "label": "Показывать характеристики",
-    "hint": "Показывать параметры и характеристики из товара-шаблона."
-  }
-]
+{
+  "Товар": [
+    {
+      "items": [
+        {
+          "name": "template_product_id",
+          "label": "ID товара-шаблона",
+          "type": "text",
+          "general": true
+        },
+        {
+          "name": "front_collection_handle",
+          "label": "Handle коллекции лицевой стороны",
+          "type": "text"
+        },
+        {
+          "name": "back_collection_handle",
+          "label": "Handle коллекции обратной стороны",
+          "type": "text"
+        },
+        {
+          "name": "backend_url",
+          "label": "URL backend сервиса",
+          "type": "text"
+        }
+      ]
+    }
+  ],
+  "Контент": [
+    {
+      "items": [
+        {
+          "name": "title",
+          "label": "Заголовок",
+          "type": "text"
+        },
+        {
+          "name": "submit_text",
+          "label": "Текст кнопки",
+          "type": "text"
+        },
+        {
+          "name": "preview_aspect_ratio",
+          "label": "Соотношение изображений превью",
+          "type": "text"
+        }
+      ]
+    }
+  ],
+  "Отступы": [
+    {
+      "items": [
+        {
+          "name": "padding_top",
+          "label": "Отступ сверху, px",
+          "type": "number"
+        },
+        {
+          "name": "padding_bottom",
+          "label": "Отступ снизу, px",
+          "type": "number"
+        }
+      ]
+    }
+  ],
+  "Поведение": [
+    {
+      "items": [
+        {
+          "name": "require_back_selection",
+          "label": "Требовать выбор обеих сторон",
+          "type": "checkbox"
+        },
+        {
+          "name": "show_description",
+          "label": "Показывать описание товара",
+          "type": "checkbox"
+        },
+        {
+          "name": "show_properties",
+          "label": "Показывать характеристики товара",
+          "type": "checkbox"
+        }
+      ]
+    }
+  ]
+}

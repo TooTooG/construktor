@@ -51,7 +51,7 @@ export async function processBuild(build: BuildRecord) {
       description: templateProduct.description ?? "",
       short_description: templateProduct.short_description ?? "",
       available: variantPayload.available,
-      is_hidden: false,
+      is_hidden: true,
       tags: buildGeneratedTags(build),
       variants_attributes: [
         {

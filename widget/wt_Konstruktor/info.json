@@ -1,9 +1,12 @@
 {
   "type": "SimpleWidgetType",
   "handle": "wt_Konstruktor",
-  "sku": "WTK.1",
-  "page_kinds": ["all"],
-  "widget_list_kinds": ["content"],
+  "page_kinds": [
+    "all"
+  ],
+  "widget_list_kinds": [
+    "content"
+  ],
   "generation": 4,
   "name": {
     "ru": "Конструктор дакимакуры"
@@ -12,5 +15,7 @@
     "ru": "Отдельная карточка-конструктор дакимакуры с выбором изображений из коллекций."
   },
   "widget_category_handle": "product-info",
-  "libraries": []
+  "libraries": [
+
+  ]
 }
